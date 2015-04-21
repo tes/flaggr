@@ -1,5 +1,7 @@
 # Flaggr - Not ready for production yet....
 
+![](https://nodei.co/npm/flaggr.png?downloads=true)
+
 ![Flagger](https://cloud.githubusercontent.com/assets/470852/7263785/941e2804-e839-11e4-9e46-e193117c760c.png)
 
 ## Methods
