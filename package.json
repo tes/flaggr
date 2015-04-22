@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "expect.js": "^0.3.1",
+    "fakeredis": "^0.3.1",
     "jshint": "^2.5.6",
     "mocha": "^1.21.4",
     "precommit-hook": "^1.0.7"
