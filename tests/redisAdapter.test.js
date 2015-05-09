@@ -1,7 +1,7 @@
 'use strict';
 
 var expect = require('expect.js');
-var RedisAdapter = require('../lib/adapters/redis');
+var RedisAdapter = require('../lib/adapters/redisAdapter');
 var _ = require('lodash');
 var async = require('async');
 

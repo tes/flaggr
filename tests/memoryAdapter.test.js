@@ -1,7 +1,7 @@
 'use strict';
 
 var expect = require('expect.js');
-var MemoryAdapter = require('../lib/adapters/memory');
+var MemoryAdapter = require('../lib/adapters/memoryAdapter');
 var _ = require('lodash');
 var async = require('async');
 
