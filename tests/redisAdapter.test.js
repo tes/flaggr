@@ -31,7 +31,7 @@ describe('Redis Adapter', function() {
 
   before(function(done) {
     var config = {
-      url: "redis://localhost?db=1"
+      url: 'redis://localhost?db=1'
     };
 
     adapter = new RedisAdapter(config);
