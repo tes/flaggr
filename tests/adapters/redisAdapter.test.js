@@ -1,7 +1,9 @@
 'use strict';
 
 var expect = require('expect.js');
-var RedisAdapter = require('../lib/adapters/redisAdapter');
+var RedisAdapter = require('../../lib/adapters/redisAdapter');
+var usersGenerator = require('../../lib/generators/users');
+var groupsGenerator = require('../../lib/generators/groups');
 var _ = require('lodash');
 var async = require('async');
 
@@ -22,7 +24,7 @@ describe('Redis Adapter', function() {
   });
 
   var checkFeatureEnabled = _.curry(function(feature, shouldbeEnabled, next) {
-    adapter.isEnabled(feature, function(err, isEnabled) {
+    adapter.isEnabledGlobally(feature, function(err, isEnabled) {
       expect(isEnabled).to.be(shouldbeEnabled);
 
       next();
@@ -177,7 +179,8 @@ describe('Redis Adapter', function() {
 
     describe('group', function() {
       var groupName = 'admins';
-      var groupKey = 'admin';
+      var groupKey = groupsGenerator.generateKey(groupName);
+      var groupProp = 'admin';
       var groupValue = true;
 
       var groupMemberAdmin = {
@@ -188,13 +191,8 @@ describe('Redis Adapter', function() {
         admin: false
       };
 
-      var checkEnabled = _.curry(function(key, groupName, groupMember, shouldBeEnabled, next) {
-        var opts = {
-          group: groupName,
-          groupMember: groupMember
-        };
-
-        adapter.isEnabled(featureKey, opts, function(err, enabled) {
+      var checkEnabled = _.curry(function(key, groupKey, groupMember, shouldBeEnabled, next) {
+        adapter.isEnabledForGroup(featureKey, groupKey, groupMember, function(err, enabled) {
           expect(err).not.to.be.ok();
           expect(enabled).to.be(shouldBeEnabled);
 
@@ -203,16 +201,16 @@ describe('Redis Adapter', function() {
       });
 
       it('should return disable if a group does not exist', function(done) {
-        checkEnabled(fakeFeatureKey, groupName, groupMemberAdmin, false, done);
+        checkEnabled(fakeFeatureKey, groupKey, groupMemberAdmin, false, done);
       });
 
       it('should allow to register a group and default to enabled', function(done) {
-        adapter.registerGroup(featureKey, groupName, groupKey, groupValue, function(err) {
+        adapter.registerGroup(featureKey, groupKey, groupProp, groupValue, function(err) {
           expect(err).not.to.be.ok();
 
           async.parallel([
-            checkEnabled(featureKey, groupName, groupMemberAdmin, true),
-            checkEnabled(featureKey, groupName, groupMemberNonAdmin, false)
+            checkEnabled(featureKey, groupKey, groupMemberAdmin, true),
+            checkEnabled(featureKey, groupKey, groupMemberNonAdmin, false)
           ], function(err) {
             expect(err).not.to.be.ok();
             done();
@@ -221,7 +219,7 @@ describe('Redis Adapter', function() {
       });
 
       it('should do nothing when trying to enable a feature that is already enabled', function(done) {
-        adapter.enableGroup(featureKey, groupName, function(err) {
+        adapter.enableGroup(featureKey, groupKey, function(err) {
           expect(err).not.to.be.ok();
           done();
         });
@@ -229,13 +227,13 @@ describe('Redis Adapter', function() {
 
       it('should disable a feature', function(done) {
         var test = function(next) {
-          adapter.disableGroup(featureKey, groupName, next);
+          adapter.disableGroup(featureKey, groupKey, next);
         };
 
         async.series([
-          checkEnabled(featureKey, groupName, groupMemberAdmin, true),
+          checkEnabled(featureKey, groupKey, groupMemberAdmin, true),
           test,
-          checkEnabled(featureKey, groupName, groupMemberAdmin, false)
+          checkEnabled(featureKey, groupKey, groupMemberAdmin, false)
         ], function(err) {
           expect(err).not.to.be.ok();
           done();
@@ -244,13 +242,13 @@ describe('Redis Adapter', function() {
 
       it('should enable a feature if a feature is disabled', function(done) {
         var test = function(next) {
-          adapter.enableGroup(featureKey, groupName, next);
+          adapter.enableGroup(featureKey, groupKey, next);
         };
 
         async.series([
-          checkEnabled(featureKey, groupName, groupMemberAdmin, false),
+          checkEnabled(featureKey, groupKey, groupMemberAdmin, false),
           test,
-          checkEnabled(featureKey, groupName, groupMemberAdmin, true)
+          checkEnabled(featureKey, groupKey, groupMemberAdmin, true)
         ], function(err) {
           expect(err).not.to.be.ok();
           done();
@@ -259,11 +257,11 @@ describe('Redis Adapter', function() {
 
       it('should return enabled if a boolean gate exist for the feature even if the group is disabled', function(done) {
         var disableGroup = function(next) {
-          adapter.disableGroup(featureKey, groupName, next);
+          adapter.disableGroup(featureKey, groupKey, next);
         };
 
         var enableGroup = function(next) {
-          adapter.enableGroup(featureKey, groupName, next);
+          adapter.enableGroup(featureKey, groupKey, next);
         };
 
         async.series([
@@ -286,7 +284,7 @@ describe('Redis Adapter', function() {
         };
 
         var enableGroup = function(next) {
-          adapter.enableGroup(featureKey, groupName, next);
+          adapter.enableGroup(featureKey, groupKey, next);
         };
 
         async.series([
@@ -310,12 +308,11 @@ describe('Redis Adapter', function() {
         id: 5
       };
 
-      var checkEnabled = _.curry(function(key, user, shouldBeEnabled, next) {
-        var opts = {
-          user: user
-        };
+      var allowedUserKey = usersGenerator.generateKey(allowedUser);
+      var nonAllowedUserKey = usersGenerator.generateKey(nonAllowedUser);
 
-        adapter.isEnabled(featureKey, opts, function(err, enabled) {
+      var checkEnabled = _.curry(function(key, userKey, shouldBeEnabled, next) {
+        adapter.isEnabledForUser(featureKey, userKey, function(err, enabled) {
           expect(err).not.to.be.ok();
           expect(enabled).to.be(shouldBeEnabled);
 
@@ -324,24 +321,16 @@ describe('Redis Adapter', function() {
       });
 
       it('should return disable if a user has not been added', function(done) {
-        checkEnabled(fakeFeatureKey, allowedUser, false, done);
-      });
-
-      it('should throw an error if the object passed doesnt have an id property', function(done) {
-        adapter.enableUser(featureKey, { other_id: 12 }, function(err) {
-          expect(err).to.be.ok();
-
-          done();
-        });
+        checkEnabled(fakeFeatureKey, allowedUserKey, false, done);
       });
 
       it('should allow to register a user and default to enabled', function(done) {
-        adapter.registerUser(featureKey, allowedUser, function(err) {
+        adapter.registerUser(featureKey, allowedUserKey, function(err) {
           expect(err).not.to.be.ok();
 
           async.parallel([
-            checkEnabled(featureKey, allowedUser, true),
-            checkEnabled(featureKey, nonAllowedUser, false)
+            checkEnabled(featureKey, allowedUserKey, true),
+            checkEnabled(featureKey, nonAllowedUserKey, false)
           ], function(err) {
             expect(err).not.to.be.ok();
             done();
@@ -350,7 +339,7 @@ describe('Redis Adapter', function() {
       });
 
       it('should do nothing when trying to enable a feature that is already enabled', function(done) {
-        adapter.registerUser(featureKey, allowedUser, function(err) {
+        adapter.registerUser(featureKey, allowedUserKey, function(err) {
           expect(err).not.to.be.ok();
           done();
         });
@@ -358,13 +347,13 @@ describe('Redis Adapter', function() {
 
       it('should disable a feature', function(done) {
         var test = function(next) {
-          adapter.disableUser(featureKey, allowedUser, next);
+          adapter.disableUser(featureKey, allowedUserKey, next);
         };
 
         async.series([
-          checkEnabled(featureKey, allowedUser, true),
+          checkEnabled(featureKey, allowedUserKey, true),
           test,
-          checkEnabled(featureKey, allowedUser, false)
+          checkEnabled(featureKey, allowedUserKey, false)
         ], function(err) {
           expect(err).not.to.be.ok();
           done();
@@ -373,13 +362,13 @@ describe('Redis Adapter', function() {
 
       it('should enable a feature if a feature is disabled', function(done) {
         var test = function(next) {
-          adapter.enableUser(featureKey, allowedUser, next);
+          adapter.enableUser(featureKey, allowedUserKey, next);
         };
 
         async.series([
-          checkEnabled(featureKey, allowedUser, false),
+          checkEnabled(featureKey, allowedUserKey, false),
           test,
-          checkEnabled(featureKey, allowedUser, true)
+          checkEnabled(featureKey, allowedUserKey, true)
         ], function(err) {
           expect(err).not.to.be.ok();
           done();
@@ -388,11 +377,11 @@ describe('Redis Adapter', function() {
 
       it('should return enabled if a boolean gate exist for the feature even if the group is disabled', function(done) {
         var disableUser = function(next) {
-          adapter.disableUser(featureKey, allowedUser, next);
+          adapter.disableUser(featureKey, allowedUserKey, next);
         };
 
         var enableUser = function(next) {
-          adapter.enableUser(featureKey, allowedUser, next);
+          adapter.enableUser(featureKey, allowedUserKey, next);
         };
 
         async.series([
@@ -415,7 +404,7 @@ describe('Redis Adapter', function() {
         };
 
         var enableUser = function(next) {
-          adapter.enableUser(featureKey, allowedUser, next);
+          adapter.enableUser(featureKey, allowedUserKey, next);
         };
 
         async.series([
