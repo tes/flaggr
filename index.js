@@ -146,6 +146,10 @@ function Flaggr(config) {
 
     return this.adapter.isEnabledForUser(feature, userKey, next);
   };
+
+  this.disconnect = function(next) {
+    return this.adapter.disconnect(next);
+  };
 }
 
 module.exports = Flaggr;

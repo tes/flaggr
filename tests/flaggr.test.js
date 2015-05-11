@@ -56,6 +56,10 @@ describe('Flaggr', function() {
       flaggr.on('ready', done);
     });
 
+    before(function(done) {
+      flaggr.disconnect(done);
+    });
+
     describe('API', function() {
       it('should return an empty list of features if there are none', function(done) {
         checkNumberOfFeatures(0, done);
